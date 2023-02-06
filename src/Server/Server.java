@@ -52,7 +52,7 @@ public class Server implements Runnable {
 	public void run() {
 		System.out.println("Server Running..");
 		try {
-			connectToServer();
+			enableConnections();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -70,9 +70,7 @@ public class Server implements Runnable {
 
 	}
 
-	public static void connectToServer() throws IOException {
-		// Try connect to the server on an unused port eg 9991. A successful connection
-		// will return a socket
+	public static void enableConnections() throws IOException {
 
 		while (running) {
 			Socket socket = serverSocket.accept();
