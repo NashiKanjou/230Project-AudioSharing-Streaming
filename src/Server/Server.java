@@ -1,7 +1,9 @@
 package Server;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -70,6 +72,19 @@ public class Server implements Runnable {
 
 	}
 
+	private static byte[] intToByteArray(int i) throws IOException {
+
+		byte[] result = new byte[4];
+
+		result[0] = (byte) (i >> 24);
+		result[1] = (byte) (i >> 16);
+		result[2] = (byte) (i >> 8);
+		result[3] = (byte) (i /* >> 0 */);
+
+		return result;
+
+	}
+
 	public static void enableConnections() throws IOException {
 
 		while (running) {
@@ -91,6 +106,40 @@ public class Server implements Runnable {
 							System.out.println("Client: " + line);
 							output_map.get(socket).add("Echo from <Your Name Here> Server: " + line);
 							// serverPrintOut.println("Echo from <Your Name Here> Server: " + line);
+
+							if (running && line.toLowerCase().trim().equals("start")) {
+
+								try {
+									File file = new File("test.wav");
+									WavFile wavFile = WavFile.openWavFile(file);
+									int[] data = new int[3840000 / 4];
+									wavFile.readFrames(data, 480000);
+									byte[] output = new byte[3840000];
+									int count = 0;
+									for (int d : data) {
+										for (byte b : intToByteArray(d)) {
+											output[count] = b;
+											count++;
+										}
+									}
+
+									String format = "AUDIOFORMAT=" + wavFile.getValidBits() + ","
+											+ wavFile.getSampleRate() + "," + wavFile.getNumChannels() + "," + 1 + ","
+											+ 1;
+
+									serverPrintOut.println(format);
+									serverPrintOut.println("AUDIODATASTART");
+									outputFromServer.write(output);
+
+								} catch (IOException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								} catch (WavFileException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								}
+							}
+
 							if (running && line.toLowerCase().trim().equals("peace")) {
 								System.out.println("closed");
 								done = true;
