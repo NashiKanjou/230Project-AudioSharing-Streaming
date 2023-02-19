@@ -4,11 +4,19 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
+import audio.AudioPlayerException;
+
 public class Client {
 	public static final String host1 = "";
 	public static final int host1_port = 9991;
 	public static final String host2 = "";
 	public static final int host2_port = 9991;
+
+	private static final String audioFormatHeader = "AUDIOFORMAT=";
+	private static final String audioDataHeader = "AUDIODATASTART";
+	public static final int single_transfer_size = 960000;// testing
+
+	public static final byte stop = 10;
 
 	static boolean done = false;
 
@@ -17,28 +25,11 @@ public class Client {
 	private static DataOutputStream outputFromServer = null;
 	private static PrintWriter serverPrintOut = null;
 
-	public static Socket getServer() {
-		return server;
-	}
-
-	static void setServer(Socket server) throws IOException {
-		Client.server = server;
-		inputToServer = new DataInputStream(server.getInputStream());
-		outputFromServer = new DataOutputStream(server.getOutputStream());
-		serverPrintOut = new PrintWriter(new OutputStreamWriter(outputFromServer, "UTF-8"), true);
-	}
-
-	static DataInputStream getDataInputStream() {
-		return inputToServer;
-	}
-
-	static DataOutputStream getDataOutputStream() {
-		return outputFromServer;
-	}
-
-	static PrintWriter getPrintWriter() {
-		return serverPrintOut;
-	}
+	public static int sampleRate = 8000;
+	public static int bit = 16;
+	public static int channels = 2;
+	public static boolean bigEndian = true;
+	public static boolean signed = true;
 
 	public static void main(String[] args) throws Exception {
 		ClientAPI.connectServer(host1, host1_port);
@@ -48,10 +39,46 @@ public class Client {
 			@Override
 			public void run() {
 				Scanner server_send = new Scanner(inputToServer, "UTF-8");
+				ClientAPI.createAudioBuffer(sampleRate, bit, channels, true, true);
 				while (!done) {
 					if (server_send.hasNextLine()) {
 						String line = server_send.nextLine();
-						System.out.println("Server: " + line);
+						if (line.startsWith(audioFormatHeader)) {
+							line = line.substring(12);
+							String[] f = line.split(",");
+							bit = Integer.parseInt(f[0]);
+							sampleRate = Integer.parseInt(f[1]);
+							channels = Integer.parseInt(f[2]);
+							if (Integer.parseInt(f[3]) == 1) {
+								signed = true;
+							} else {
+								signed = false;
+							}
+							if (Integer.parseInt(f[4]) == 1) {
+								bigEndian = true;
+							} else {
+								bigEndian = false;
+							}
+							System.out.println(
+									"" + bit + "b " + sampleRate + "Hz " + channels + "c " + signed + " " + bigEndian);
+							ClientAPI.createAudioBuffer(sampleRate, bit, channels, signed, bigEndian);
+						} else if (line.startsWith(audioDataHeader)) {
+							try {
+								System.out.println("recieving..");
+								byte[] data = recieveAudioData(single_transfer_size);
+								System.out.println("appending.." + data.length);
+								ClientAPI.appendAudioBuffer(data);
+								System.out.println("playing..");
+								ClientAPI.playAudio();
+							} catch (IOException e) {
+								e.printStackTrace();
+							} catch (AudioPlayerException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						} else {
+
+						}
 					}
 				}
 				server_send.close();
@@ -80,4 +107,37 @@ public class Client {
 
 	}
 
+	public static Socket getServer() {
+		return server;
+	}
+
+	public static void setServer(Socket server) throws IOException {
+		Client.server = server;
+		inputToServer = new DataInputStream(server.getInputStream());
+		outputFromServer = new DataOutputStream(server.getOutputStream());
+		serverPrintOut = new PrintWriter(new OutputStreamWriter(outputFromServer, "UTF-8"), true);
+	}
+
+	public static byte[] recieveAudioData(int frames) throws IOException {
+		byte[] data = new byte[frames];
+		DataInputStream input = ClientAPI.getDataInputStream();
+		int count = 0;
+		while (count < frames) {
+			data[count] = input.readByte();
+			count++;
+		}
+		return data;
+	}
+
+	public static DataInputStream getDataInputStream() {
+		return inputToServer;
+	}
+
+	public static DataOutputStream getDataOutputStream() {
+		return outputFromServer;
+	}
+
+	public static PrintWriter getPrintWriter() {
+		return serverPrintOut;
+	}
 }
