@@ -2,17 +2,18 @@ package Client;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
-
 import audio.AudioBuffer;
 import audio.AudioPlayer;
 import audio.AudioPlayerException;
@@ -21,6 +22,17 @@ public class ClientAPI {
 	public static AudioBuffer buffer;
 	// private static boolean isPlaying;
 	public static AudioPlayer player;
+
+	public static byte[] recieveAudioData(int frames) throws IOException {
+		byte[] data = new byte[frames];
+		DataInputStream input = ClientAPI.getDataInputStream();
+		int count = 0;
+		while (count < frames) {
+			data[count] = input.readByte();
+			count++;
+		}
+		return data;
+	}
 
 	public static void playAudio() throws AudioPlayerException {
 		// player = new AudioPlayer(buffer);
@@ -33,12 +45,16 @@ public class ClientAPI {
 				clip = AudioSystem.getClip();
 				clip.open(inputStream);
 				clip.start();
+				/*
+				 * might need a new thread for this, please check!
+				 * 
+				 * 
+				 * 
+				 */
 			} catch (LineUnavailableException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -75,9 +91,9 @@ public class ClientAPI {
 	public static void createAudioBuffer(int sampleRate, int bitdepth, int channels, boolean signed,
 			boolean bigEndian) {
 		AudioFormat format = new AudioFormat(sampleRate, bitdepth, channels, signed, bigEndian);
-		System.out.println(format.getChannels());
-		System.out.println(format.getSampleSizeInBits());
-		System.out.println(format.getSampleRate());
+		System.out.println("number of channel(s): " + format.getChannels());
+		System.out.println("bit depth: " + format.getSampleSizeInBits());
+		System.out.println("sample rate: " + format.getSampleRate());
 		buffer = new AudioBuffer(format);
 	}
 
@@ -85,7 +101,68 @@ public class ClientAPI {
 		buffer.write(data, 0, data.length);
 	}
 
-	public static void downloadFile() {
+	public static void downloadFile(String filename, int piece, int chunksize) throws IOException {//untested
+		FileOutputStream output = new FileOutputStream(filename, true);
+		Map<Integer, byte[]> buffer = new HashMap<Integer, byte[]>();//save data that arrived that is not in order
+
+		try {
+			DataInputStream input = ClientAPI.getDataInputStream();
+			int chunkcount = 0;
+			while (chunkcount < piece) {
+				if (buffer.containsKey(chunkcount)) {
+					output.write(buffer.get(chunkcount));
+					buffer.remove(chunkcount);
+					chunkcount++;
+					/*
+					 * Request new chunk with the label chunkcount
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 */
+					continue;
+				}
+				int count = 0;
+				int stamp = -1;
+				byte[] chunk = new byte[chunksize];
+				while (count < chunksize) {
+					chunk[count] = input.readByte();
+					count++;
+				}
+				stamp = input.readInt();
+				if (stamp == chunkcount) {
+					output.write(chunk);
+					chunkcount++;
+				} else {
+					buffer.put(stamp, chunk);
+					/*
+					 * Request new chunk with the label chunkcount
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 * 
+					 */
+				}
+			}
+		} finally {
+			output.close();
+		}
 
 	}
 

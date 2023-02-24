@@ -31,8 +31,9 @@ public class Client {
 	public static boolean bigEndian = true;
 	public static boolean signed = true;
 
-	public static void main(String[] args) throws Exception {
-		ClientAPI.connectServer(host1, host1_port);
+	public static void main(String[] args) {
+		//try catch the whole main for reconnect to another server? 
+		ClientAPI.connectServer(host1, host1_port);// this will try to connect to second server if the first one time out
 		// connected
 
 		Thread ComRThread = new Thread("Receive Thread") {
@@ -47,7 +48,7 @@ public class Client {
 							line = line.substring(12);
 							String[] f = line.split(",");
 							bit = Integer.parseInt(f[0]);
-							sampleRate = Integer.parseInt(f[1]);
+							sampleRate = Integer.parseInt(f[1]) * 2;
 							channels = Integer.parseInt(f[2]);
 							if (Integer.parseInt(f[3]) == 1) {
 								signed = true;
@@ -59,21 +60,28 @@ public class Client {
 							} else {
 								bigEndian = false;
 							}
-							System.out.println(
-									"" + bit + "b " + sampleRate + "Hz " + channels + "c " + signed + " " + bigEndian);
+							/*
+							 * System.out.println( "" + bit + "b " + sampleRate + "Hz " + channels + "c " +
+							 * signed + " " + bigEndian);
+							 */
 							ClientAPI.createAudioBuffer(sampleRate, bit, channels, signed, bigEndian);
 						} else if (line.startsWith(audioDataHeader)) {
 							try {
 								System.out.println("recieving..");
-								byte[] data = recieveAudioData(single_transfer_size);
-								System.out.println("appending.." + data.length);
+								byte[] data = ClientAPI.recieveAudioData(single_transfer_size);
+								System.out.println("appending data to buffer.." + data.length);
 								ClientAPI.appendAudioBuffer(data);
+								/*
+								 * will need to do more things about data and buffer, the code above is only for
+								 * testing and have bugs..
+								 * 
+								 * 
+								 */
 								System.out.println("playing..");
 								ClientAPI.playAudio();
 							} catch (IOException e) {
 								e.printStackTrace();
 							} catch (AudioPlayerException e) {
-								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
 						} else {
@@ -116,17 +124,6 @@ public class Client {
 		inputToServer = new DataInputStream(server.getInputStream());
 		outputFromServer = new DataOutputStream(server.getOutputStream());
 		serverPrintOut = new PrintWriter(new OutputStreamWriter(outputFromServer, "UTF-8"), true);
-	}
-
-	public static byte[] recieveAudioData(int frames) throws IOException {
-		byte[] data = new byte[frames];
-		DataInputStream input = ClientAPI.getDataInputStream();
-		int count = 0;
-		while (count < frames) {
-			data[count] = input.readByte();
-			count++;
-		}
-		return data;
 	}
 
 	public static DataInputStream getDataInputStream() {
