@@ -71,15 +71,20 @@ public class Server implements Runnable {
 
 	}
 
-	private static byte[] intToByteArray(int i) throws IOException {
-
-		byte[] result = new byte[4];
-
-		result[0] = (byte) (i >> 24);
-		result[1] = (byte) (i >> 16);
-		result[2] = (byte) (i >> 8);
-		result[3] = (byte) (i /* >> 0 */);
-
+	private static byte[] intToByteArray(int i, int bitdepth) throws IOException {
+		int b = bitdepth / 8;
+		byte[] result = new byte[b];
+		for (int a = 0; a < b; a++) {
+			result[a] = (byte) (i >> (b - 1 - a) * 8);
+		}
+		result[0] = (byte) (i >> 8);
+		result[1] = (byte) (i /* >> 0 */);
+		/*
+		 * byte[] result = new byte[4];
+		 * 
+		 * result[0] = (byte) (i >> 24); result[1] = (byte) (i >> 16); result[2] =
+		 * (byte) (i >> 8); result[3] = (byte) (i );
+		 */
 		return result;
 
 	}
@@ -116,7 +121,7 @@ public class Server implements Runnable {
 									byte[] output = new byte[3840000];
 									int count = 0;
 									for (int d : data) {
-										for (byte b : intToByteArray(d)) {
+										for (byte b : intToByteArray(d,wavFile.getValidBits())) {
 											output[count] = b;
 											count++;
 										}

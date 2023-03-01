@@ -65,9 +65,13 @@ public class ClientAPI {
 	public static void playAudio() throws AudioPlayerException {
 		// player = new AudioPlayer(buffer);
 		// player.playAudio();
+		AudioPlayer ap = new AudioPlayer(buffer);
+		ap.playAudio();
+		/*
 		Clip clip;
 		AudioInputStream inputStream;
 		try {
+			//System.out.println(buffer.getFormat().getSampleRate());
 			inputStream = buffer.toAudioInputStream();
 			try {
 				clip = AudioSystem.getClip();
@@ -78,14 +82,14 @@ public class ClientAPI {
 				 * 
 				 * 
 				 * 
-				 */
+				 
 			} catch (LineUnavailableException e) {
 				e.printStackTrace();
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
+*/
 	}
 
 	public static void stopAudio() throws AudioPlayerException {
