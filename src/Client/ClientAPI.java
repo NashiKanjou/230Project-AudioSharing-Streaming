@@ -4,10 +4,12 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -19,9 +21,35 @@ import audio.AudioPlayer;
 import audio.AudioPlayerException;
 
 public class ClientAPI {
+
+	public static final String host1 = "";
+	public static final int host1_port = 9991;
+	public static final String host2 = "";
+	public static final int host2_port = 9991;
+
 	public static AudioBuffer buffer;
 	// private static boolean isPlaying;
 	public static AudioPlayer player;
+
+	public static Thread recieveThread;
+	public static Thread sendThread;
+
+	private static final String audioFormatHeader = "AUDIOFORMAT=";
+	private static final String audioDataHeader = "AUDIODATASTART";
+	public static final int single_transfer_size = 960000;// testing
+
+	public static int sampleRate = 8000;
+	public static int bit = 16;
+	public static int channels = 2;
+	public static boolean bigEndian = true;
+	public static boolean signed = true;
+
+	private static Socket server = null;
+	private static DataInputStream inputToServer = null;
+	private static DataOutputStream outputFromServer = null;
+	private static PrintWriter serverPrintOut = null;
+
+	private static boolean done = false;
 
 	public static byte[] recieveAudioData(int frames) throws IOException {
 		byte[] data = new byte[frames];
@@ -101,9 +129,9 @@ public class ClientAPI {
 		buffer.write(data, 0, data.length);
 	}
 
-	public static void downloadFile(String filename, int piece, int chunksize) throws IOException {//untested
+	public static void downloadFile(String filename, int piece, int chunksize) throws IOException {// untested
 		FileOutputStream output = new FileOutputStream(filename, true);
-		Map<Integer, byte[]> buffer = new HashMap<Integer, byte[]>();//save data that arrived that is not in order
+		Map<Integer, byte[]> buffer = new HashMap<Integer, byte[]>();// save data that arrived that is not in order
 
 		try {
 			DataInputStream input = ClientAPI.getDataInputStream();
@@ -189,33 +217,122 @@ public class ClientAPI {
 		getServerSocket().close();
 	}
 
+	public static void connectServer() {
+		connectServer(host1, host1_port);
+	}
+
 	public static void connectServer(String host, int port) {
 		try {
 			Socket server = new Socket(host, port);
-			Client.setServer(server);
+			setServer(server);
 		} catch (Exception e) {
 			System.out.println(e.toString());
-			if (host.equals(Client.host1)) {
-				connectServer(Client.host2, Client.host2_port);
+			if (host.equals(host1)) {
+				connectServer(host2, host2_port);
 			} else {
-				connectServer(Client.host1, Client.host1_port);
+				connectServer(host1, host1_port);
 			}
 		}
+		recieveThread = new Thread("Receive Thread") {
+			@Override
+			public void run() {
+				Scanner server_send = new Scanner(inputToServer, "UTF-8");
+				ClientAPI.createAudioBuffer(sampleRate, bit, channels, true, true);
+				while (!done) {
+					if (server_send.hasNextLine()) {
+						String line = server_send.nextLine();
+						if (line.startsWith(audioFormatHeader)) {
+							line = line.substring(12);
+							String[] f = line.split(",");
+							bit = Integer.parseInt(f[0]);
+							sampleRate = Integer.parseInt(f[1]) * 2;
+							channels = Integer.parseInt(f[2]);
+							if (Integer.parseInt(f[3]) == 1) {
+								signed = true;
+							} else {
+								signed = false;
+							}
+							if (Integer.parseInt(f[4]) == 1) {
+								bigEndian = true;
+							} else {
+								bigEndian = false;
+							}
+							/*
+							 * System.out.println( "" + bit + "b " + sampleRate + "Hz " + channels + "c " +
+							 * signed + " " + bigEndian);
+							 */
+							ClientAPI.createAudioBuffer(sampleRate, bit, channels, signed, bigEndian);
+						} else if (line.startsWith(audioDataHeader)) {
+							try {
+								System.out.println("recieving..");
+								byte[] data = ClientAPI.recieveAudioData(single_transfer_size);
+								System.out.println("appending data to buffer.." + data.length);
+								ClientAPI.appendAudioBuffer(data);
+								/*
+								 * will need to do more things about data and buffer, the code above is only for
+								 * testing and have bugs..
+								 * 
+								 * 
+								 */
+								System.out.println("playing..");
+								ClientAPI.playAudio();
+							} catch (IOException e) {
+								e.printStackTrace();
+							} catch (AudioPlayerException e) {
+								e.printStackTrace();
+							}
+						} else {
+
+						}
+					}
+				}
+				server_send.close();
+				try {
+					ClientAPI.disconnect();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		};
+		sendThread = new Thread("Send Thread") {
+			@Override
+			public void run() {
+				Scanner keyboard = new Scanner(System.in, "UTF-8");
+				while (!done) {
+					if (keyboard.hasNextLine()) {
+						String line = keyboard.nextLine();
+						ClientAPI.sendMessage(line);
+					}
+				}
+				keyboard.close();
+			}
+		};
+		recieveThread.start();
+		sendThread.start();
+
 	}
 
 	public static Socket getServerSocket() {
-		return Client.getServer();
+		return server;
+	}
+
+	public static void setServer(Socket server) throws IOException {
+		ClientAPI.server = server;
+		inputToServer = new DataInputStream(server.getInputStream());
+		outputFromServer = new DataOutputStream(server.getOutputStream());
+		serverPrintOut = new PrintWriter(new OutputStreamWriter(outputFromServer, "UTF-8"), true);
 	}
 
 	public static DataInputStream getDataInputStream() {
-		return Client.getDataInputStream();
+		return inputToServer;
 	}
 
 	public static DataOutputStream getDataOutputStream() {
-		return Client.getDataOutputStream();
+		return outputFromServer;
 	}
 
 	public static PrintWriter getPrintWriter() {
-		return Client.getPrintWriter();
+		return serverPrintOut;
 	}
+
 }
