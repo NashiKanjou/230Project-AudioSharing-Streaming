@@ -24,7 +24,7 @@ public class ClientAPI {
 
 	public static final String host1 = "";
 	public static final int host1_port = 9991;
-	public static final String host2 = "";
+	public static final String host2 = "114.33.193.52";
 	public static final int host2_port = 9991;
 
 	public static AudioBuffer buffer;
@@ -36,7 +36,7 @@ public class ClientAPI {
 
 	private static final String audioFormatHeader = "AUDIOFORMAT=";
 	private static final String audioDataHeader = "AUDIODATASTART";
-	public static final int single_transfer_size = 960000;// testing
+	public static final int single_transfer_size = 480000;// testing
 
 	public static int sampleRate = 8000;
 	public static int bit = 16;
@@ -223,8 +223,10 @@ public class ClientAPI {
 
 	public static void connectServer(String host, int port) {
 		try {
+			System.out.println("connecting to "+ host);
 			Socket server = new Socket(host, port);
 			setServer(server);
+			System.out.println("connected");
 		} catch (Exception e) {
 			System.out.println(e.toString());
 			if (host.equals(host1)) {
@@ -245,7 +247,7 @@ public class ClientAPI {
 							line = line.substring(12);
 							String[] f = line.split(",");
 							bit = Integer.parseInt(f[0]);
-							sampleRate = Integer.parseInt(f[1]) * 2;
+							sampleRate = Integer.parseInt(f[1]);
 							channels = Integer.parseInt(f[2]);
 							if (Integer.parseInt(f[3]) == 1) {
 								signed = true;
@@ -309,7 +311,6 @@ public class ClientAPI {
 		};
 		recieveThread.start();
 		sendThread.start();
-
 	}
 
 	public static Socket getServerSocket() {
