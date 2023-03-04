@@ -159,6 +159,7 @@ public class AudioBuffer {
 		if (inputStream == null) {
 			toAudioInputStream();
 		}
+		
 		return inputStream.read(b, off, len);
 	}
 

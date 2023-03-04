@@ -3,6 +3,7 @@ package Server;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -77,7 +78,7 @@ public class Server implements Runnable {
 		for (int a = 0; a < b; a++) {
 			result[a] = (byte) (i >> (b - 1 - a) * 8);
 		}
-	
+
 		return result;
 
 	}
@@ -109,25 +110,39 @@ public class Server implements Runnable {
 								try {
 									File file = new File("test.wav");
 									WavFile wavFile = WavFile.openWavFile(file);
+									/*
 									int[] data = new int[3840000 / 4];
-									wavFile.readFrames(data, 480000);
+									int read = wavFile.readFrames(data, 480000);
+									// System.out.println(read);
 									byte[] output = new byte[3840000];
 									int count = 0;
 									for (int d : data) {
-										for (byte b : intToByteArray(d,wavFile.getValidBits())) {
+										for (byte b : intToByteArray(d, wavFile.getValidBits())) {
 											output[count] = b;
 											count++;
 										}
 									}
-
+*/
 									String format = "AUDIOFORMAT=" + wavFile.getValidBits() + ","
 											+ wavFile.getSampleRate() + "," + wavFile.getNumChannels() + "," + 1 + ","
 											+ 1;
 
 									serverPrintOut.println(format);
 									serverPrintOut.println("AUDIODATASTART");
-									outputFromServer.write(output);
 
+									try (FileInputStream in = new FileInputStream(file)) {
+										byte buffer[] = new byte[2048];
+										int count2;
+										while ((count2 = in.read(buffer)) != -1)
+											outputFromServer.write(buffer, 0, count2);
+										/*
+										 * outputFromServer.write(output); while (scanner.hasNextLine()) { if (read ==
+										 * 480000) { data = new int[3840000 / 4]; read = wavFile.readFrames(data,
+										 * 480000); output = new byte[3840000]; count = 0; outputFromServer.write(read);
+										 * for (int d : data) { for (byte b : intToByteArray(d, wavFile.getValidBits()))
+										 * { output[count] = b; count++; } } outputFromServer.write(output); } }
+										 */
+									}
 								} catch (IOException e) {
 									// TODO Auto-generated catch block
 									e.printStackTrace();

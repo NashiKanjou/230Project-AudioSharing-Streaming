@@ -1,9 +1,11 @@
 package Client;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -56,7 +58,9 @@ public class ClientAPI {
 		DataInputStream input = ClientAPI.getDataInputStream();
 		int count = 0;
 		while (count < frames) {
-			data[count] = input.readByte();
+			// System.out.println(count + "<" + frames);
+			byte b = input.readByte();
+			data[count] = b;
 			count++;
 		}
 		return data;
@@ -65,31 +69,32 @@ public class ClientAPI {
 	public static void playAudio() throws AudioPlayerException {
 		// player = new AudioPlayer(buffer);
 		// player.playAudio();
-		AudioPlayer ap = new AudioPlayer(buffer);
-		ap.playAudio();
-		/*
-		Clip clip;
-		AudioInputStream inputStream;
-		try {
-			//System.out.println(buffer.getFormat().getSampleRate());
-			inputStream = buffer.toAudioInputStream();
-			try {
-				clip = AudioSystem.getClip();
-				clip.open(inputStream);
-				clip.start();
-				/*
-				 * might need a new thread for this, please check!
-				 * 
-				 * 
-				 * 
-				 
-			} catch (LineUnavailableException e) {
-				e.printStackTrace();
+		Thread thread = new Thread("PlayThread") {
+			@Override
+			public void run() {
+				AudioPlayer ap = new AudioPlayer(buffer);
+				try {
+					ap.playAudio();
+				} catch (AudioPlayerException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-*/
+		};
+		thread.start();
+		/*
+		 * Clip clip; AudioInputStream inputStream; try {
+		 * //System.out.println(buffer.getFormat().getSampleRate()); inputStream =
+		 * buffer.toAudioInputStream(); try { clip = AudioSystem.getClip();
+		 * clip.open(inputStream); clip.start(); /* might need a new thread for this,
+		 * please check!
+		 * 
+		 * 
+		 * 
+		 * 
+		 * } catch (LineUnavailableException e) { e.printStackTrace(); } } catch
+		 * (IOException e) { e.printStackTrace(); }
+		 */
 	}
 
 	public static void stopAudio() throws AudioPlayerException {
@@ -129,8 +134,45 @@ public class ClientAPI {
 		buffer = new AudioBuffer(format);
 	}
 
-	public static void appendAudioBuffer(byte[] data) {
+	private static synchronized void play(final InputStream in) throws Exception {
+		AudioInputStream ais = AudioSystem.getAudioInputStream(in);
+		try (Clip clip = AudioSystem.getClip()) {
+			clip.open(ais);
+			clip.start();
+			Thread.sleep(100); // given clip.drain a chance to start
+			clip.drain();
+		}
+	}
+
+	public static void request() {
+		ClientAPI.sendMessage("next");
+		System.out.println("recieving..");
+		int i = 0;
+		try {
+			i = ClientAPI.getDataInputStream().readInt();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		System.out.println(i);
+		byte[] data2;
+		try {
+			data2 = ClientAPI.recieveAudioData(i);
+			System.out.println("appending data to buffer.." + data2.length);
+			ClientAPI.appendAudioBuffer(data2, 0);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		// c += data.length;
+	}
+
+	public static void appendAudioBuffer(byte[] data, int off) {
 		buffer.write(data, 0, data.length);
+		// buffer.transcode(AudioFormat.Encoding.PCM_SIGNED);
+		// buffer.toAudioInputStream();
+		// buffer.
 	}
 
 	public static void downloadFile(String filename, int piece, int chunksize) throws IOException {// untested
@@ -227,7 +269,7 @@ public class ClientAPI {
 
 	public static void connectServer(String host, int port) {
 		try {
-			System.out.println("connecting to "+ host);
+			System.out.println("connecting to " + host);
 			Socket server = new Socket(host, port);
 			setServer(server);
 			System.out.println("connected");
@@ -270,21 +312,22 @@ public class ClientAPI {
 							ClientAPI.createAudioBuffer(sampleRate, bit, channels, signed, bigEndian);
 						} else if (line.startsWith(audioDataHeader)) {
 							try {
-								System.out.println("recieving..");
-								byte[] data = ClientAPI.recieveAudioData(single_transfer_size);
-								System.out.println("appending data to buffer.." + data.length);
-								ClientAPI.appendAudioBuffer(data);
+								InputStream in = new BufferedInputStream(ClientAPI.getDataInputStream());
+								play(in);
 								/*
-								 * will need to do more things about data and buffer, the code above is only for
-								 * testing and have bugs..
+								 * System.out.println("recieving.."); byte[] data =
+								 * ClientAPI.recieveAudioData(single_transfer_size);
+								 * System.out.println("appending data to buffer.." + data.length);
+								 * ClientAPI.appendAudioBuffer(data, 0); /* will need to do more things about
+								 * data and buffer, the code above is only for testing and have bugs..
 								 * 
 								 * 
+								 * 
+								 * System.out.println("playing.."); ClientAPI.playAudio(); for (int i = 0; i <
+								 * 50; i++) { // sleep(10000); // ClientAPI.ask(); }
 								 */
-								System.out.println("playing..");
-								ClientAPI.playAudio();
-							} catch (IOException e) {
-								e.printStackTrace();
-							} catch (AudioPlayerException e) {
+							} catch (Exception e) {
+								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
 						} else {

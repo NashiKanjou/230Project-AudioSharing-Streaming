@@ -4,6 +4,8 @@ import java.io.*;
 import javax.sound.sampled.*;
 import javax.swing.event.*;
 
+import Client.ClientAPI;
+
 /********************************************************/
 /**
  * An AudioPlayer knows how to access audio hardware to capture and playback
@@ -148,7 +150,7 @@ public class AudioPlayer {
 		// the audio hardware. Transcode the audioBuffer's data to
 		// linear.
 
-		audioBuffer.transcode(AudioFormat.Encoding.PCM_SIGNED);
+		//audioBuffer.transcode(AudioFormat.Encoding.PCM_SIGNED);
 
 		// Notify listeners that playing is starting.
 		fireStateChangedEvent(State.PLAYING);
@@ -170,8 +172,10 @@ public class AudioPlayer {
 
 				count = audioBuffer.read(buffer, 0, buffer.length);
 
-				if (count < 0) {
+				if (count <= 0) {
 					isPlaying = false;
+					//ClientAPI.request();
+					System.out.println("EMPTY");
 				} else if (count > 0) {
 					line.write(buffer, 0, count);
 				}
@@ -187,6 +191,7 @@ public class AudioPlayer {
 				line.drain();
 				line.close();
 			}
+			//System.out.println("END");
 			isPlaying = false;
 
 			// Notify listeners that playing has stopped.
