@@ -2,9 +2,25 @@
 
 import socket
 import wave
+import os
 
 HOST = "127.0.0.1"  # localhost
 PORT = 65500  # data server port
+
+songlist = []
+for n in os.listdir():
+    if n.endswith('.wav'):
+        songlist.append(n)
+
+songlist_str = "liststart\r\n"
+
+for s in songlist:
+    songlist_str = songlist_str + s + "\r\n"
+
+songlist_str = songlist_str + "listend"
+
+print(songlist)
+print(songlist_str)
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -16,31 +32,26 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         conn, addr = s.accept()
         with conn:
             print(f"Connected by {addr}")
-            while True:
-                data = conn.recv(1024)
-                print("data DS received was: " + str(data))
-                if not data:
-                    break
+            
+            request = conn.recv(1024)
+            req = str(request)[2:len(str(request))-1]
 
-                # load WAV file
-                #song = wave.open('icecream.wav', 'rb')
-                with open('icecream.wav', 'rb') as f:
+            if req in songlist:
+                print("Looking for song: " + req)
+                with open(req, 'rb') as f:
                     while True:
                         data = f.read(1024)
-                        if not data:
+                        if len(data) < 1:
+                            print("Done sending WAV file.")
                             break
-                        #print("here")
-                        #conn.send(data)
-                        conn.send(b'trash')
-                    #print("done")
+                        conn.send(data)
 
-                '''
-                filename = 'icecream.wav'
+            elif 'list' in req:
+                print("Sending song list.")
+                conn.send(bytes(songlist_str, 'utf-8'))
 
-                with open(filename, 'rb') as f:
-                    for l in f: conn.sendall(l)
-                s.close()
-                '''
+            else:
+                print(f"Requested file {req} not found.")
+                conn.send(b"Requested file not found.")
+                
 
-                # conn.sendall(b"songfile.wav")
-                #conn.sendall(song)
