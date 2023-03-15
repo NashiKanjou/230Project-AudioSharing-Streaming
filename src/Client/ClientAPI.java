@@ -41,16 +41,6 @@ public class ClientAPI {
 	public static Thread recieveThread;
 	public static Thread sendThread;
 
-	private static final String audioFormatHeader = "AUDIOFORMAT=";
-	private static final String audioDataHeader = "AUDIODATASTART";
-	public static final int single_transfer_size = 2048;// testing
-
-	public static int sampleRate = 8000;
-	public static int bit = 16;
-	public static int channels = 2;
-	public static boolean bigEndian = true;
-	public static boolean signed = true;
-
 	private static Socket server = null;
 	private static DataInputStream inputToServer = null;
 	private static DataOutputStream outputFromServer = null;
@@ -60,121 +50,7 @@ public class ClientAPI {
 
 	public static List<String> list_files = new ArrayList<String>();
 
-	public static byte[] old_recieveAudioData(int frames) throws IOException {
-		byte[] data = new byte[frames];
-		DataInputStream input = ClientAPI.getDataInputStream();
-
-		int i = input.read(data);
-		//System.out.println(i);
-		ClientAPI.sendMessage("finish");
-		return data;
-
-	}
-
-	public static void playAudio() throws AudioPlayerException, UnsupportedAudioFileException, IOException,
-			LineUnavailableException, InterruptedException {
-
-		try (ServerSocket s = new ServerSocket(9528)) {
-			Thread output = new Thread("Buffer..") {
-
-				@Override
-				public void run() {
-					try {
-						Socket buf = s.accept();
-						int last = 0;
-						// read buffer and send..
-						System.out.println("BufferThread");
-						while (true) {
-							if (map_data.containsKey(last)) {
-								byte[] data = map_data.get(last);
-								buf.getOutputStream().write(data);
-								map_data.remove(last);
-								last += data.length;
-							}
-						}
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-			};
-			output.start();
-		}
-		Thread player = new Thread("player") {
-			@Override
-			public void run() {
-				try (Socket b = new Socket("", 9528)) {
-					// read from input and play
-					AudioInputStream ais = AudioSystem.getAudioInputStream(b.getInputStream());
-					try (Clip clip = AudioSystem.getClip()) {
-						//System.out.println("Player Thread");
-						clip.open(ais);
-						clip.start();
-						Thread.sleep(100); // given clip.drain a chance to start
-						clip.drain();
-						isPlaying = false;
-					} catch (LineUnavailableException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-
-				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (UnsupportedAudioFileException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		};
-		player.start();
-	}
-
-	public static void stopAudio() throws AudioPlayerException {
-		player.stop();
-	}
-
-	public static AudioFormat format;
-
-	/**
-	 * will create new buffer in this API
-	 * 
-	 * @param sampleRate is the sample rate of data
-	 * @param channels   is number of channels of the data
-	 * @param bitdepth   is bit depth of data (usually will be 16 or 24)
-	 * @param signed     is the data signed (usually signed)
-	 * @param bigEndian  is the data bigEndian or not (usually true)
-	 */
-	public static void createAudioBuffer(int sampleRate, int bitdepth, int channels, boolean signed,
-			boolean bigEndian) {
-
-		format = new AudioFormat(sampleRate, bitdepth, channels, signed, bigEndian);
-		System.out.println("number of channel(s): " + format.getChannels());
-		System.out.println("bit depth: " + format.getSampleSizeInBits());
-		System.out.println("sample rate: " + format.getSampleRate());
-		// buffer = new AudioBuffer(format);
-
-		buffer = new ByteArrayOutputStream();
-	}
-
 	public static boolean isPlaying = false;
-
-	public static HashMap<Integer, byte[]> map_data = new HashMap<Integer, byte[]>();
-	public static int count = 0;
-
-	public static void appendAudioBuffer(byte[] data, int off) throws IOException {
-		map_data.put(count, data);
-		count += data.length;
-		// buffer.write(data, 0, data.length);
-		// buffer.transcode(AudioFormat.Encoding.PCM_SIGNED);
-		// buffer.toAudioInputStream();
-		// buffer.
-	}
 
 	public static void downloadFile(String filename, int piece, int chunksize) throws IOException {// untested
 		FileOutputStream output = new FileOutputStream(filename, true);
@@ -286,71 +162,10 @@ public class ClientAPI {
 			@Override
 			public void run() {
 				Scanner server_send = new Scanner(inputToServer, "UTF-8");
-				ClientAPI.createAudioBuffer(sampleRate, bit, channels, true, true);
 				while (!done) {
 					if (server_send.hasNextLine()) {
 						String line = server_send.nextLine();
-						if (line.startsWith(audioFormatHeader)) {
-							line = line.substring(12);
-							String[] f = line.split(",");
-							bit = Integer.parseInt(f[0]);
-							sampleRate = Integer.parseInt(f[1]);
-							channels = Integer.parseInt(f[2]);
-							if (Integer.parseInt(f[3]) == 1) {
-								signed = true;
-							} else {
-								signed = false;
-							}
-							if (Integer.parseInt(f[4]) == 1) {
-								bigEndian = true;
-							} else {
-								bigEndian = false;
-							}
-							/*
-							 * System.out.println( "" + bit + "b " + sampleRate + "Hz " + channels + "c " +
-							 * signed + " " + bigEndian);
-							 */
-							ClientAPI.createAudioBuffer(sampleRate, bit, channels, signed, bigEndian);
-						} else if (line.startsWith(audioDataHeader)) {
-							try {
-								// DataInputStream input = ClientAPI.getDataInputStream();
-								System.out.println("recieving..");
-								// String l = server_send.nextInt();
-								// System.out.println(l);
-								// int frames = server_send.nextInt();
-								int frames = 2048;
-								byte[] data = new byte[frames];
-								DataInputStream input = ClientAPI.getDataInputStream();
-
-								int i = input.read(data);
-								//System.out.println(i);
-								//ClientAPI.sendMessage("finish");
-								
-								//System.out.println("appending data to buffer.." + data.length);
-								ClientAPI.appendAudioBuffer(data, 0);
-								playAudio();
-
-								while (true) {
-									// l = server_send.nextLine();
-									// System.out.println(l);
-									// frames = server_send.nextInt();
-									data = new byte[frames];
-									i = input.read(data);
-									//System.out.println(i);
-									//ClientAPI.sendMessage("finish");
-									ClientAPI.appendAudioBuffer(data, 0);
-									//System.out.println("appending data to buffer.." + data.length);
-									if (i != 2048) {
-										break;
-									}
-								}
-								// InputStream in = new BufferedInputStream(ClientAPI.getDataInputStream());
-								// play(in);
-							} catch (Exception e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-						} else if (line.equalsIgnoreCase("filelistheader")) {
+						if (line.equalsIgnoreCase("filelistheader")) {
 							list_files.clear();
 							line = server_send.nextLine();
 							while (!line.equalsIgnoreCase("filelistend")) {
