@@ -33,7 +33,7 @@ public class ClientAPI {
 	public static final int host1_port = 65400;
 
 	public static ByteArrayOutputStream buffer;
-	
+
 	public static Thread recieveThread;
 	public static Thread sendThread;
 
@@ -119,7 +119,7 @@ public class ClientAPI {
 
 	public static void sendMessage(String str) {
 		getPrintWriter().println(str);
-		System.out.println("send "+str);
+		System.out.println("send " + str);
 	}
 
 	public static void sendMesssage(byte b[]) {
@@ -173,13 +173,15 @@ public class ClientAPI {
 								line = server_send.nextLine();
 							}
 							// output to GUI?
-						} else if(line.equalsIgnoreCase("audio")){
-							
 						} else {
-							
+							try {
+								InputStream in = new BufferedInputStream(server.getInputStream());
+								play(in);
+							} catch (Exception e) {
+							}
 						}
 					} else {
-						
+
 					}
 				}
 
@@ -202,25 +204,20 @@ public class ClientAPI {
 						String line = keyboard.nextLine();
 						if (line.equals("stop")) {
 							ClientAPI.stop();
-						} 
-						else if (line.equals("pause")){
+						} else if (line.equals("pause")) {
 							ClientAPI.pause();
-						} 
-						else if (line.contains(".wav")) {
+						} else if (line.contains(".wav")) {
 							System.out.println("wav");
 							ClientAPI.sendMessage(line);
-							try {
-								InputStream in = new BufferedInputStream(server.getInputStream());
-								play(in);
-							} catch (Exception e) {}
-						} else if (line.equals("showlist")){
-							for(String str: list_files){
+
+						} else if (line.equals("showlist")) {
+							for (String str : list_files) {
 								System.out.println(str);
 							}
-						}else{
+						} else {
 							ClientAPI.sendMessage(line);
 						}
-						
+
 					}
 				}
 				keyboard.close();
@@ -254,23 +251,48 @@ public class ClientAPI {
 	}
 
 	public static Clip clip;
+	public static Thread playthread;
 
 	private static synchronized void play(final InputStream in) throws Exception {
-        AudioInputStream ais = AudioSystem.getAudioInputStream(in);
-        try{ 
-			clip = AudioSystem.getClip(); 
-            clip.open(ais);
-            clip.start();
-			isPlaying = true;
-            Thread.sleep(100); // given clip.drain a chance to start
-            clip.drain();
-        } catch (Exception e) {
-
+		if (clip != null) {
+			clip.stop();
 		}
+		AudioInputStream ais = AudioSystem.getAudioInputStream(in);
+		try {
+			clip = AudioSystem.getClip();
+			clip.open(ais);
+			clip.start();
+			isPlaying = true;
+			Thread.sleep(200); // given clip.drain a chance to start
+			clip.drain();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		/*
+		if (playthread != null) {
+			playthread.join();
+		}
+		playthread = new Thread("play Thread") {
+			@Override
+			public void run() {
+				try {
+					clip = AudioSystem.getClip();
+					clip.open(ais);
+					clip.start();
+					isPlaying = true;
+					Thread.sleep(100); // given clip.drain a chance to start
+					clip.drain();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 
-    }
+			}
+		};
+		playthread.start();
+*/
+	}
 
-	private static void stop(){
+	private static void stop() {
 		if (clip != null) {
 			clip.stop();
 		}
