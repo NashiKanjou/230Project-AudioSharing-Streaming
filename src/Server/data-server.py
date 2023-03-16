@@ -8,7 +8,7 @@ HOST = "127.0.0.1"  # localhost
 MY_PORT = 65500 
 
 songlist = []
-for n in os.listdir():
+for n in os.listdir("src/Server/database"):
     if n.endswith('.wav'):
         songlist.append(n)
 
@@ -36,7 +36,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
             if req in songlist:
                 print("Looking for song: " + req)
-                with open(req, 'rb') as f:
+                with open(os.path.join("src/Server/database", req), 'rb') as f:
                     while True:
                         data = f.read(2048)
                         if len(data) < 1:

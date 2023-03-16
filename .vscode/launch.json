@@ -16,7 +16,7 @@
             "name": "Python: middle server",
             "type": "python",
             "request": "launch",
-            "program": "./src/middle-server.py",
+            "program": "./src/Server/middle-server.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -24,7 +24,7 @@
             "name": "Python: data server",
             "type": "python",
             "request": "launch",
-            "program": "./src/data-server.py",
+            "program": "./src/Server/data-server.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }
