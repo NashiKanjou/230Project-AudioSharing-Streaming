@@ -6,6 +6,7 @@ import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.BufferedInputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -24,20 +25,15 @@ import javax.sound.sampled.Clip;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
-import audio.AudioPlayer;
-import audio.AudioPlayerException;
-
 public class ClientAPI {
 
-	public static final String host1 = "";
-	public static final int host1_port = 9991;
-	public static final String host2 = "169.234.41.69";
-	public static final int host2_port = 65400;
+	public static final String host2 = "169.234.10.40";
+	public static final int host2_port = 9991;
+	public static final String host1 = "127.0.0.1";
+	public static final int host1_port = 65400;
 
 	public static ByteArrayOutputStream buffer;
-	// private static boolean isPlaying;
-	public static AudioPlayer player;
-
+	
 	public static Thread recieveThread;
 	public static Thread sendThread;
 
@@ -123,6 +119,7 @@ public class ClientAPI {
 
 	public static void sendMessage(String str) {
 		getPrintWriter().println(str);
+		System.out.println("send "+str);
 	}
 
 	public static void sendMesssage(byte b[]) {
@@ -140,7 +137,7 @@ public class ClientAPI {
 		getServerSocket().close();
 	}
 
-	public static void connectServer() {
+	public static void start() {
 		connectServer(host1, host1_port);
 	}
 
@@ -157,28 +154,37 @@ public class ClientAPI {
 			} else {
 				connectServer(host1, host1_port);
 			}
+			return;
 		}
 		recieveThread = new Thread("Receive Thread") {
 			@Override
 			public void run() {
 				Scanner server_send = new Scanner(inputToServer, "UTF-8");
+				long start = System.currentTimeMillis();
 				while (!done) {
 					if (server_send.hasNextLine()) {
 						String line = server_send.nextLine();
-						if (line.equalsIgnoreCase("filelistheader")) {
+						if (line.equalsIgnoreCase("liststart")) {
 							list_files.clear();
 							line = server_send.nextLine();
-							while (!line.equalsIgnoreCase("filelistend")) {
+							while (!line.equalsIgnoreCase("listend")) {
 								list_files.add(line);
 								// System.out.println(line);
 								line = server_send.nextLine();
 							}
 							// output to GUI?
+						} else if(line.equalsIgnoreCase("audio")){
+							
 						} else {
-							// System.out.println(line);
+							
 						}
+					} else {
+						
 					}
 				}
+
+				long end = System.currentTimeMillis();
+				System.out.println(end - start);
 				server_send.close();
 				try {
 					ClientAPI.disconnect();
@@ -194,7 +200,27 @@ public class ClientAPI {
 				while (!done) {
 					if (keyboard.hasNextLine()) {
 						String line = keyboard.nextLine();
-						ClientAPI.sendMessage(line);
+						if (line.equals("stop")) {
+							ClientAPI.stop();
+						} 
+						else if (line.equals("pause")){
+							ClientAPI.pause();
+						} 
+						else if (line.contains(".wav")) {
+							System.out.println("wav");
+							ClientAPI.sendMessage(line);
+							try {
+								InputStream in = new BufferedInputStream(server.getInputStream());
+								play(in);
+							} catch (Exception e) {}
+						} else if (line.equals("showlist")){
+							for(String str: list_files){
+								System.out.println(str);
+							}
+						}else{
+							ClientAPI.sendMessage(line);
+						}
+						
 					}
 				}
 				keyboard.close();
@@ -227,4 +253,38 @@ public class ClientAPI {
 		return serverPrintOut;
 	}
 
+	public static Clip clip;
+
+	private static synchronized void play(final InputStream in) throws Exception {
+        AudioInputStream ais = AudioSystem.getAudioInputStream(in);
+        try{ 
+			clip = AudioSystem.getClip(); 
+            clip.open(ais);
+            clip.start();
+			isPlaying = true;
+            Thread.sleep(100); // given clip.drain a chance to start
+            clip.drain();
+        } catch (Exception e) {
+
+		}
+
+    }
+
+	private static void stop(){
+		if (clip != null) {
+			clip.stop();
+		}
+	}
+
+	private static void pause() {
+		if (clip != null) {
+			if (isPlaying) {
+				clip.stop();
+				isPlaying = false;
+			} else {
+				clip.start();
+				isPlaying = true;
+			}
+		}
+	}
 }
