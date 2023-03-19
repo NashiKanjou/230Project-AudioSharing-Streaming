@@ -155,7 +155,7 @@ public class ClientAPI {
 						int rand_int = Math.min(r, piece);
 						ClientAPI.sendMessage(filename + rand_int);
 					}
-				} else {
+				} else if (stamp > chunkcount){
 					System.out.println("buffered:" + stamp);
 					byte[] data = new byte[i-4];
 					for(int a=0;a<i-4;a++) {
