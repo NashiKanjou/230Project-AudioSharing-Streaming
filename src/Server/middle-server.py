@@ -36,11 +36,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                                 t.sendall(client_request)
 
                                 while True:
-                                    data = t.recv(2048)
+                                    data = t.recv(2052)
                                     if not data:
                                         break
                                     conn.sendall(data)
-
+                                    print('send')
                                 received_data = 1
                                 print(f"Finished sending data to client {addr}.")
 
