@@ -115,19 +115,8 @@ public class ClientAPI {
 		try {
 			DataInputStream input = ClientAPI.getDataInputStream();
 			while (chunkcount < piece) {
-				// System.out.println("test");
-				if (buffer.containsKey(chunkcount)) {
-					System.out.println("from buffer:" + chunkcount);
-					output.write(buffer.get(chunkcount), 0,buffer.get(chunkcount).length);
-					buffer.remove(chunkcount);
-					chunkcount++;
-					/*
-					if (chunkcount < piece) {
-						ClientAPI.sendMessage(filename + chunkcount);
-					}
-					*/
-					continue;
-				}
+				System.out.println("");
+				
 				int stamp = -1;
 				byte[] chunk = new byte[2052];
 				// System.out.println("read");
@@ -148,11 +137,11 @@ public class ClientAPI {
 					chunkcount++;
 					if (chunkcount < piece) {
 						int r = chunkcount;
-						if (rand.nextInt(10) > 7) {
+						if (rand.nextInt(10) > 2) {
 							r = chunkcount + rand.nextInt(5);
-							System.out.println("rand:" + r);
+							//System.out.println("rand:" + r);
 						}
-						int rand_int = Math.min(r, piece);
+						int rand_int = Math.min(r, piece-1);
 						ClientAPI.sendMessage(filename + rand_int);
 					}
 				} else if (stamp > chunkcount){
@@ -166,6 +155,18 @@ public class ClientAPI {
 					ClientAPI.sendMessage(filename + chunkcount);
 				}else {
 					ClientAPI.sendMessage(filename + chunkcount);
+				}
+				while (chunkcount < piece&&buffer.containsKey(chunkcount)) {
+					System.out.println("from buffer:" + chunkcount);
+					output.write(buffer.get(chunkcount), 0,buffer.get(chunkcount).length);
+					buffer.remove(chunkcount);
+					chunkcount++;
+					/*
+					if (chunkcount < piece) {
+						ClientAPI.sendMessage(filename + chunkcount);
+					}
+					*/
+					continue;
 				}
 			}
 			System.out.println("end");
