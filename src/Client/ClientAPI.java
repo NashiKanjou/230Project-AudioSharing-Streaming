@@ -164,6 +164,8 @@ public class ClientAPI {
 					buffer.put(stamp, data);
 
 					ClientAPI.sendMessage(filename + chunkcount);
+				}else {
+					ClientAPI.sendMessage(filename + chunkcount);
 				}
 			}
 			System.out.println("end");
