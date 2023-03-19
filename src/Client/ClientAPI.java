@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 
 import javax.sound.sampled.AudioInputStream;
@@ -31,7 +32,7 @@ public class ClientAPI {
 
 	public static Thread recieveThread;
 	public static Thread sendThread;
-
+	public static Random rand = new Random();
 	private static Socket server = null;
 	private static DataInputStream inputFromServer = null;
 	private static DataOutputStream outputFromServer = null;
@@ -80,7 +81,12 @@ public class ClientAPI {
 					output.write(chunk, 0, i - 4);
 					chunkcount++;
 					if (chunkcount < piece) {
-						ClientAPI.sendMessage(filename + chunkcount);
+
+						int r = chunkcount + rand.nextInt(10) - 5;
+						System.out.println("rand:" + r);
+
+						int rand_int = Math.min(r, piece);
+						ClientAPI.sendMessage(filename + rand_int);
 					}
 				} else {
 					System.out.println("buffered:" + stamp);
@@ -112,12 +118,14 @@ public class ClientAPI {
 				// System.out.println("test");
 				if (buffer.containsKey(chunkcount)) {
 					System.out.println("from buffer:" + chunkcount);
-					output.write(buffer.get(chunkcount));
+					output.write(buffer.get(chunkcount), 0,buffer.get(chunkcount).length);
 					buffer.remove(chunkcount);
 					chunkcount++;
+					/*
 					if (chunkcount < piece) {
 						ClientAPI.sendMessage(filename + chunkcount);
 					}
+					*/
 					continue;
 				}
 				int stamp = -1;
@@ -139,11 +147,21 @@ public class ClientAPI {
 					output.write(chunk, 0, i - 4);
 					chunkcount++;
 					if (chunkcount < piece) {
-						ClientAPI.sendMessage(filename + chunkcount);
+						int r = chunkcount;
+						if (rand.nextInt(10) > 7) {
+							r = chunkcount + rand.nextInt(5);
+							System.out.println("rand:" + r);
+						}
+						int rand_int = Math.min(r, piece);
+						ClientAPI.sendMessage(filename + rand_int);
 					}
 				} else {
 					System.out.println("buffered:" + stamp);
-					buffer.put(stamp, chunk);
+					byte[] data = new byte[i-4];
+					for(int a=0;a<i-4;a++) {
+						data[a]=chunk[a];
+					}
+					buffer.put(stamp, data);
 
 					ClientAPI.sendMessage(filename + chunkcount);
 				}
