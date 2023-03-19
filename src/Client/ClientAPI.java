@@ -43,32 +43,27 @@ public class ClientAPI {
 
 	public static boolean isPlaying = false;
 
-	public static void downloadFile(String filename, int piece) throws IOException {// untested
-		FileOutputStream output = new FileOutputStream(filename, true);
+	public static void downloadFile(FileOutputStream output, int chunkcount, String filename, int piece)
+			throws IOException {
 		Map<Integer, byte[]> buffer = new HashMap<Integer, byte[]>();// save data that arrived that is not in order
-		int chunkcount = 0;
 		ClientAPI.sendMessage(filename + chunkcount);
 		try {
 			DataInputStream input = ClientAPI.getDataInputStream();
 			while (chunkcount < piece) {
-				//System.out.println("test");
+				// System.out.println("test");
 				if (buffer.containsKey(chunkcount)) {
 					System.out.println("from buffer:" + chunkcount);
 					output.write(buffer.get(chunkcount));
 					buffer.remove(chunkcount);
 					chunkcount++;
-					if(chunkcount < piece) {
+					if (chunkcount < piece) {
 						ClientAPI.sendMessage(filename + chunkcount);
-						}
-					/*
-					 * Request new chunk with the label chunkcount
-					 * 
-					 */
+					}
 					continue;
 				}
 				int stamp = -1;
 				byte[] chunk = new byte[2052];
-				//System.out.println("read");
+				// System.out.println("read");
 				int i = input.read(chunk);
 //System.out.println(i);
 				try {
@@ -78,42 +73,89 @@ public class ClientAPI {
 					}
 				} catch (Exception e) {
 				}
-				//stamp = input.readInt();
+				// stamp = input.readInt();
 				System.out.println("recieved:" + stamp);
 				if (stamp == chunkcount) {
-					System.out.println("write:"+stamp);
-					output.write(chunk,0,i-4);
+					System.out.println("write:" + stamp);
+					output.write(chunk, 0, i - 4);
 					chunkcount++;
-					if(chunkcount < piece) {
-					ClientAPI.sendMessage(filename + chunkcount);
+					if (chunkcount < piece) {
+						ClientAPI.sendMessage(filename + chunkcount);
 					}
 				} else {
 					System.out.println("buffered:" + stamp);
 					buffer.put(stamp, chunk);
-					/*
-					 * Request new chunk with the label chunkcount
-					 * 
-					 * 
-					 * 
-					 * 
-					 * 
-					 * 
-					 * 
-					 * 
-					 * 
-					 * 
-					 * 
-					 * 
-					 */
+
 					ClientAPI.sendMessage(filename + chunkcount);
 				}
 			}
 			System.out.println("end");
 		} catch (Exception e) {
-			e.printStackTrace();
+			start();
+			downloadFile(output, chunkcount, filename, piece);
 		} finally {
-			System.out.println("close");
-			output.close();
+			if (chunkcount == piece) {
+				System.out.println("close");
+				output.close();
+			}
+		}
+	}
+
+	public static void downloadFile(String filename, int piece) throws IOException {// untested
+		FileOutputStream output = new FileOutputStream(filename, true);
+		Map<Integer, byte[]> buffer = new HashMap<Integer, byte[]>();// save data that arrived that is not in order
+		int chunkcount = 0;
+		ClientAPI.sendMessage(filename + chunkcount);
+		try {
+			DataInputStream input = ClientAPI.getDataInputStream();
+			while (chunkcount < piece) {
+				// System.out.println("test");
+				if (buffer.containsKey(chunkcount)) {
+					System.out.println("from buffer:" + chunkcount);
+					output.write(buffer.get(chunkcount));
+					buffer.remove(chunkcount);
+					chunkcount++;
+					if (chunkcount < piece) {
+						ClientAPI.sendMessage(filename + chunkcount);
+					}
+					continue;
+				}
+				int stamp = -1;
+				byte[] chunk = new byte[2052];
+				// System.out.println("read");
+				int i = input.read(chunk);
+//System.out.println(i);
+				try {
+					for (int x = i - 4; x < i; x++) {
+						byte b = chunk[x];
+						stamp = (stamp << 8) + (b & 0xFF);
+					}
+				} catch (Exception e) {
+				}
+				// stamp = input.readInt();
+				System.out.println("recieved:" + stamp);
+				if (stamp == chunkcount) {
+					System.out.println("write:" + stamp);
+					output.write(chunk, 0, i - 4);
+					chunkcount++;
+					if (chunkcount < piece) {
+						ClientAPI.sendMessage(filename + chunkcount);
+					}
+				} else {
+					System.out.println("buffered:" + stamp);
+					buffer.put(stamp, chunk);
+
+					ClientAPI.sendMessage(filename + chunkcount);
+				}
+			}
+			System.out.println("end");
+		} catch (Exception e) {
+			downloadFile(output, chunkcount, filename, piece);
+		} finally {
+			if (chunkcount == piece) {
+				System.out.println("close");
+				output.close();
+			}
 		}
 
 	}
@@ -169,7 +211,7 @@ public class ClientAPI {
 				while (!done) {
 					if (server_send.hasNextLine()) {
 						String line = server_send.nextLine();
-						//System.out.println("L:"+line);
+						// System.out.println("L:"+line);
 						if (line.equalsIgnoreCase("liststart")) {
 							list_files.clear();
 							line = server_send.nextLine();
@@ -188,17 +230,17 @@ public class ClientAPI {
 							}
 
 						} else if (line.startsWith("download")) {
-							//System.out.println("R:"+line);
+							// System.out.println("R:"+line);
 							int piece = 0;
 							byte[] data = new byte[4];
 							try {
 								inputFromServer.read(data);
-								//System.out.println("recieve");
-							
+								// System.out.println("recieve");
+
 								for (byte b : data) {
 									piece = (piece << 8) + (b & 0xFF);
 								}
-								System.out.println("piece:"+piece);
+								System.out.println("piece:" + piece);
 							} catch (IOException e1) {
 								e1.printStackTrace();
 							}
