@@ -6,7 +6,9 @@ import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -23,10 +25,10 @@ import javax.sound.sampled.Clip;
 
 public class ClientAPI {
 
-	public static final String host2 = "169.234.10.40";
-	public static final int host2_port = 9991;
 	public static final String host1 = "127.0.0.1";
-	public static final int host1_port = 65400;
+	public static final int host1_port = 65500;
+	public static final String host2 = "127.0.0.1";
+	public static final int host2_port = 65510;
 
 	public static ByteArrayOutputStream buffer;
 
@@ -116,7 +118,7 @@ public class ClientAPI {
 			DataInputStream input = ClientAPI.getDataInputStream();
 			while (chunkcount < piece) {
 				System.out.println("");
-				
+
 				int stamp = -1;
 				byte[] chunk = new byte[2052];
 				// System.out.println("read");
@@ -139,33 +141,31 @@ public class ClientAPI {
 						int r = chunkcount;
 						if (rand.nextInt(10) > 2) {
 							r = chunkcount + rand.nextInt(5);
-							//System.out.println("rand:" + r);
+							// System.out.println("rand:" + r);
 						}
-						int rand_int = Math.min(r, piece-1);
+						int rand_int = Math.min(r, piece - 1);
 						ClientAPI.sendMessage(filename + rand_int);
 					}
-				} else if (stamp > chunkcount){
+				} else if (stamp > chunkcount) {
 					System.out.println("buffered:" + stamp);
-					byte[] data = new byte[i-4];
-					for(int a=0;a<i-4;a++) {
-						data[a]=chunk[a];
+					byte[] data = new byte[i - 4];
+					for (int a = 0; a < i - 4; a++) {
+						data[a] = chunk[a];
 					}
 					buffer.put(stamp, data);
 
 					ClientAPI.sendMessage(filename + chunkcount);
-				}else {
+				} else {
 					ClientAPI.sendMessage(filename + chunkcount);
 				}
-				while (chunkcount < piece&&buffer.containsKey(chunkcount)) {
+				while (chunkcount < piece && buffer.containsKey(chunkcount)) {
 					System.out.println("from buffer:" + chunkcount);
-					output.write(buffer.get(chunkcount), 0,buffer.get(chunkcount).length);
+					output.write(buffer.get(chunkcount), 0, buffer.get(chunkcount).length);
 					buffer.remove(chunkcount);
 					chunkcount++;
 					/*
-					if (chunkcount < piece) {
-						ClientAPI.sendMessage(filename + chunkcount);
-					}
-					*/
+					 * if (chunkcount < piece) { ClientAPI.sendMessage(filename + chunkcount); }
+					 */
 					continue;
 				}
 			}
@@ -227,23 +227,33 @@ public class ClientAPI {
 		recieveThread = new Thread("Receive Thread") {
 			@Override
 			public void run() {
-				Scanner server_send = new Scanner(inputFromServer, "UTF-8");
+				DataInputStream d = new DataInputStream(inputFromServer);
+				BufferedReader b = new BufferedReader(new InputStreamReader(d));
 				long start = System.currentTimeMillis();
+				
 				while (!done) {
-					if (server_send.hasNextLine()) {
-						String line = server_send.nextLine();
-						// System.out.println("L:"+line);
+					// System.out.println("loop");
+					try {
+						String line = "";
+
+						line = b.readLine();
+						System.out.println("R:" + line);
+
+						// System.out.println("line");
+						// line = server_send.nextLine();
+
 						if (line.equalsIgnoreCase("liststart")) {
+							System.out.println("playlist updating");
 							list_files.clear();
-							line = server_send.nextLine();
+							line = b.readLine();
 							while (!line.equalsIgnoreCase("listend")) {
 								list_files.add(line);
 								// System.out.println(line);
-								line = server_send.nextLine();
+								line = b.readLine();
 							}
+							System.out.println("playlist updated");
 							// output to GUI?
 						} else if (line.equalsIgnoreCase("stream")) {
-
 							try {
 								InputStream in = new BufferedInputStream(server.getInputStream());
 								play(in);
@@ -258,8 +268,8 @@ public class ClientAPI {
 								inputFromServer.read(data);
 								// System.out.println("recieve");
 
-								for (byte b : data) {
-									piece = (piece << 8) + (b & 0xFF);
+								for (byte by : data) {
+									piece = (piece << 8) + (by & 0xFF);
 								}
 								System.out.println("piece:" + piece);
 							} catch (IOException e1) {
@@ -272,15 +282,24 @@ public class ClientAPI {
 								e.printStackTrace();
 							}
 
+						} else {
+							System.out.println(line);
+							try {
+								InputStream in = new BufferedInputStream(server.getInputStream());
+								play(in);
+							} catch (Exception e) {
+							}
 						}
-					} else {
 
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
 					}
 				}
 
 				long end = System.currentTimeMillis();
 				System.out.println(end - start);
-				server_send.close();
+				// server_send.close();
 				try {
 					ClientAPI.disconnect();
 				} catch (IOException e) {
